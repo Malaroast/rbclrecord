@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>야구 기록 열람</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">야구 기록 열람</div>
+
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('batters')">타자</div>
+    <div class="tab" onclick="showTab('pitchers')">투수</div>
+  </div>
+
+  <input type="text" id="searchBox" placeholder="닉네임 검색..." onkeyup="filterTable()">
+
+  <div id="battersTable"></div>
+  <div id="pitchersTable" style="display:none;"></div>
+</div>
+
+<!-- 선수 세부 정보 모달 -->
+<div id="playerModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <div id="playerDetail">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+let currentTab = 'batters';
+let battersData = [];
+let pitchersData = [];
+let sortState = {};
+
+function fetchData(sheetName, callback) {
+  fetch(`https://opensheet.elk.sh/1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y/${sheetName}`)
+    .then(res => res.json())
+    .then(data => callback(data));
+}
+
+function renderTable(data, containerId, type) {
+  let container = document.getElementById(containerId);
+  if (!data.length) {
+    container.innerHTML = "<p>데이터가 없습니다.</p>";
+    return;
+  }
+  let table = '<table><thead><tr>';
+  for (let key in data[0]) {
+    let arrow = sortState[key] ? (sortState[key] === 'asc' ? '▲' : '▼') : '';
+    table += `<th onclick="sortTable('${containerId}', '${key}', '${type}')">${key} <span class="arrow">${arrow}</span></th>`;
+  }
+  table += '</tr></thead><tbody>';
+  data.forEach(row => {
+    table += '<tr>';
+    for (let key in row) {
+      if (key === '닉네임') {
+        table += `<td><a href="#" onclick="showPlayerDetail('${type}', '${row[key]}')">${row[key]}</a></td>`;
+      } else {
+        table += `<td>${row[key]}</td>`;
+      }
+    }
+    table += '</tr>';
+  });
+  table += '</tbody></table>';
+  container.innerHTML = table;
+}
+
+function sortTable(containerId, key, type) {
+  let data = type === 'batters' ? battersData : pitchersData;
+  sortState[key] = sortState[key] === 'asc' ? 'desc' : 'asc';
+  data.sort((a, b) => {
+    let valA = isNaN(a[key]) ? a[key] : parseFloat(a[key]);
+    let valB = isNaN(b[key]) ? b[key] : parseFloat(b[key]);
+    if (valA < valB) return sortState[key] === 'asc' ? -1 : 1;
+    if (valA > valB) return sortState[key] === 'asc' ? 1 : -1;
+    return 0;
+  });
+  renderTable(data, containerId, type);
+}
+
+function filterTable() {
+  let searchTerm = document.getElementById('searchBox').value.toLowerCase();
+  let data = currentTab === 'batters' ? battersData : pitchersData;
+  let filtered = data.filter(row => row['닉네임'] && row['닉네임'].toLowerCase().includes(searchTerm));
+  renderTable(filtered, currentTab === 'batters' ? 'battersTable' : 'pitchersTable', currentTab);
+}
+
+function showTab(tabName) {
+  currentTab = tabName;
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tabName === 'batters' ? 1 : 2})`).classList.add('active');
+  document.getElementById('battersTable').style.display = tabName === 'batters' ? 'block' : 'none';
+  document.getElementById('pitchersTable').style.display = tabName === 'pitchers' ? 'block' : 'none';
+}
+
+function showPlayerDetail(type, name) {
+  let data = type === 'batters' ? battersData : pitchersData;
+  let player = data.find(row => row['닉네임'] === name);
+  if (player) {
+    let html = `<h2>${player['닉네임']} (${type === 'batters' ? '타자' : '투수'})</h2>`;
+    html += '<table><tbody>';
+    for (let key in player) {
+      html += `<tr><th>${key}</th><td>${player[key]}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('playerDetail').innerHTML = html;
+    document.getElementById('playerModal').style.display = 'block';
+  }
+}
+
+function closeModal() {
+  document.getElementById('playerModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+  let modal = document.getElementById('playerModal');
+  if (event.target === modal) {
+    modal.style.display = 'none';
+  }
+}
+
+fetchData('Batters', data => { battersData = data; renderTable(battersData, 'battersTable', 'batters'); });
+fetchData('Pitchers', data => { pitchersData = data; renderTable(pitchersData, 'pitchersTable', 'pitchers'); });
+</script>
+
+</body>
+</html>
