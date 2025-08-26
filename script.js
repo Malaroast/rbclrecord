@@ -1,88 +1,88 @@
-const SPREADSHEET_ID = "1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y";
-const API_KEY = "YOUR_GOOGLE_API_KEY"; // 👉 본인 Google API Key 입력 필요
+const sheets = {
+  batters: "https://docs.google.com/spreadsheets/d/1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y/gviz/tq?tqx=out:csv&sheet=Batters",
+  pitchers: "https://docs.google.com/spreadsheets/d/1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y/gviz/tq?tqx=out:csv&sheet=Pitchers"
+};
 
-const battersRange = "Batters!A:Z";
-const pitchersRange = "Pitchers!A:Z";
+let dataCache = { batters: [], pitchers: [] };
 
-async function fetchSheet(range) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.values;
+// CSV 파싱
+function parseCSV(text) {
+  return text.trim().split("\n").map(row => row.split(","));
 }
 
-function renderTable(data, headId, bodyId) {
-  const headers = data[0];
-  const rows = data.slice(1);
-
-  const thead = document.getElementById(headId);
-  const tbody = document.getElementById(bodyId);
-
-  thead.innerHTML = "<tr>" + headers.map(h => `<th onclick="sortTable('${bodyId}', ${headers.indexOf(h)})">${h}</th>`).join("") + "</tr>";
-
-  tbody.innerHTML = rows.map(row =>
-    `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`
-  ).join("");
+// 데이터 불러오기
+async function loadSheet(type) {
+  const res = await fetch(sheets[type]);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  dataCache[type] = rows;
+  renderTable(type);
 }
 
-function showTab(tab) {
-  document.getElementById("battersTab").classList.remove("active");
-  document.getElementById("pitchersTab").classList.remove("active");
-  document.getElementById(tab + "Tab").classList.add("active");
+// 테이블 출력
+function renderTable(type) {
+  const container = document.getElementById(type);
+  const rows = dataCache[type];
+  if (!rows.length) return;
+
+  let html = "<table><thead><tr>";
+  rows[0].forEach((col, i) => {
+    html += `<th onclick="sortTable('${type}', ${i})">${col}</th>`;
+  });
+  html += "</tr></thead><tbody>";
+  rows.slice(1).forEach(row => {
+    html += "<tr>" + row.map(col => `<td>${col}</td>`).join("") + "</tr>";
+  });
+  html += "</tbody></table>";
+  container.innerHTML = html;
 }
 
-function sortTable(tableId, colIndex) {
-  const tbody = document.getElementById(tableId);
-  const rows = Array.from(tbody.rows);
+// 정렬
+function sortTable(type, colIndex) {
+  let rows = dataCache[type];
+  const header = rows[0];
+  let body = rows.slice(1);
 
-  const isAsc = tbody.getAttribute("data-sort") !== "asc";
-  tbody.setAttribute("data-sort", isAsc ? "asc" : "desc");
+  const isNumber = body.every(r => !isNaN(parseFloat(r[colIndex])));
+  const asc = !(dataCache[`${type}_asc`] === colIndex);
+  dataCache[`${type}_asc`] = asc ? colIndex : null;
 
-  rows.sort((a, b) => {
-    let x = a.cells[colIndex].innerText;
-    let y = b.cells[colIndex].innerText;
-
-    let numX = parseFloat(x);
-    let numY = parseFloat(y);
-
-    if (!isNaN(numX) && !isNaN(numY)) {
-      return isAsc ? numX - numY : numY - numX;
-    } else {
-      return isAsc ? x.localeCompare(y) : y.localeCompare(x);
-    }
+  body.sort((a, b) => {
+    let x = a[colIndex], y = b[colIndex];
+    if (isNumber) { x = parseFloat(x)||0; y = parseFloat(y)||0; }
+    return asc ? (x > y ? 1 : -1) : (x < y ? 1 : -1);
   });
 
-  tbody.innerHTML = "";
-  rows.forEach(r => tbody.appendChild(r));
+  dataCache[type] = [header, ...body];
+  renderTable(type);
 }
 
+// 검색
 function searchPlayer() {
-  const keyword = document.getElementById("searchInput").value.trim();
-  if (!keyword) return;
+  const query = document.getElementById("searchInput").value.toLowerCase();
+  ["batters","pitchers"].forEach(type=>{
+    const container = document.getElementById(type);
+    const rows = dataCache[type];
+    if (!rows.length) return;
 
-  const allTables = [...document.querySelectorAll("tbody tr")];
-  const match = allTables.find(tr => tr.cells[0] && tr.cells[0].innerText.includes(keyword));
-
-  if (match) {
-    const playerName = match.cells[0].innerText;
-    const stats = Array.from(match.cells).map((c, i) => `${match.parentElement.parentElement.rows[0].cells[i].innerText}: ${c.innerText}`).join("<br>");
-
-    document.getElementById("playerName").innerText = playerName;
-    document.getElementById("playerStats").innerHTML = stats;
-    document.getElementById("playerModal").style.display = "block";
-  } else {
-    alert("선수를 찾을 수 없습니다.");
-  }
+    let filtered = [rows[0], ...rows.slice(1).filter(r => r.some(c => c.toLowerCase().includes(query)))];
+    let html = "<table><thead><tr>";
+    filtered[0].forEach((col,i)=> html += `<th onclick="sortTable('${type}', ${i})">${col}</th>`);
+    html += "</tr></thead><tbody>";
+    filtered.slice(1).forEach(row=>{
+      html += "<tr>" + row.map(c=>`<td>${c}</td>`).join("") + "</tr>";
+    });
+    html += "</tbody></table>";
+    container.innerHTML = html;
+  });
 }
 
-function closeModal() {
-  document.getElementById("playerModal").style.display = "none";
+// 탭 전환
+function showTab(tab) {
+  document.querySelectorAll(".tab-content").forEach(div => div.style.display = "none");
+  document.getElementById(tab).style.display = "block";
 }
 
-(async function init() {
-  const batters = await fetchSheet(battersRange);
-  const pitchers = await fetchSheet(pitchersRange);
-
-  renderTable(batters, "battersHead", "battersBody");
-  renderTable(pitchers, "pitchersHead", "pitchersBody");
-})();
+// 초기 실행
+loadSheet("batters");
+loadSheet("pitchers");
