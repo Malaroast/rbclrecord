@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>야구 기록 열람 사이트</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>야구 기록 열람</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>야구 기록 열람</h1>
@@ -14,32 +14,11 @@
   </div>
 
   <div class="search-box">
-    <input type="text" id="searchInput" placeholder="닉네임 검색..." />
-    <button onclick="searchPlayer()">검색</button>
+    <input type="text" id="searchInput" placeholder="닉네임 검색" onkeyup="searchPlayer()">
   </div>
 
-  <div id="battersTab" class="tab active">
-    <table id="battersTable" class="sortable">
-      <thead id="battersHead"></thead>
-      <tbody id="battersBody"></tbody>
-    </table>
-  </div>
-
-  <div id="pitchersTab" class="tab">
-    <table id="pitchersTable" class="sortable">
-      <thead id="pitchersHead"></thead>
-      <tbody id="pitchersBody"></tbody>
-    </table>
-  </div>
-
-  <!-- 상세 팝업 -->
-  <div id="playerModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeModal()">&times;</span>
-      <h2 id="playerName"></h2>
-      <div id="playerStats"></div>
-    </div>
-  </div>
+  <div id="batters" class="tab-content"></div>
+  <div id="pitchers" class="tab-content" style="display:none"></div>
 
   <script src="script.js"></script>
 </body>
