@@ -1,49 +1,36 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>야구 기록 열람</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>야구 기록 뷰어</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <h1>야구 기록 열람</h1>
-    <div class="search-row">
-      <input id="searchInput" type="text" placeholder="닉네임으로 검색 (타자/투수 각각 첫 열)"/>
-      <span id="status" class="status"></span>
-    </div>
+  <header>
+    <h1>야구 선수 기록</h1>
     <div class="tabs">
-      <button class="tab-btn active" data-target="batters">타자 기록</button>
-      <button class="tab-btn" data-target="pitchers">투수 기록</button>
+      <button class="tab-btn active" data-tab="batters">타자 기록</button>
+      <button class="tab-btn" data-tab="pitchers">투수 기록</button>
     </div>
+    <input type="text" id="searchInput" placeholder="선수 검색...">
   </header>
 
   <main>
-    <!-- 타자 -->
-    <section id="batters" class="tab-panel active">
-      <div class="card">
-        <div class="card-head">
-          <h2>타자 기록</h2>
-          <small class="hint">컬럼명을 클릭하면 정렬(▲/▼)됩니다</small>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead id="battersHead"></thead>
-            <tbody id="battersBody"></tbody>
-          </table>
-        </div>
-      </div>
+    <section id="batters" class="tab-content active">
+      <table id="battersTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
     </section>
+    <section id="pitchers" class="tab-content">
+      <table id="pitchersTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
 
-    <!-- 투수 -->
-    <section id="pitchers" class="tab-panel">
-      <div class="card">
-        <div class="card-head">
-          <h2>투수 기록</h2>
-          <small class="hint">컬럼명을 클릭하면 정렬(▲/▼)됩니다</small>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead id="pitchersHead"></thead>
-            <tbody id="pitchersBody"></tbody>
+  <script src="script.js"></script>
+</body>
+</html>
