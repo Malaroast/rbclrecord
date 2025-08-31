@@ -1,37 +1,49 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>야구 기록 열람</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
+  <header class="topbar">
     <h1>야구 기록 열람</h1>
-    <input type="text" id="searchInput" placeholder="닉네임 검색..." />
+    <div class="search-row">
+      <input id="searchInput" type="text" placeholder="닉네임으로 검색 (타자/투수 각각 첫 열)"/>
+      <span id="status" class="status"></span>
+    </div>
     <div class="tabs">
-      <button class="tab-button active" data-tab="batters">타자 기록</button>
-      <button class="tab-button" data-tab="pitchers">투수 기록</button>
+      <button class="tab-btn active" data-target="batters">타자 기록</button>
+      <button class="tab-btn" data-target="pitchers">투수 기록</button>
     </div>
   </header>
 
   <main>
-    <div id="batters" class="tab-content active">
-      <h2>타자 기록</h2>
-      <table id="battersTable">
-        <thead id="battersHead"></thead>
-        <tbody id="battersBody"></tbody>
-      </table>
-    </div>
-    <div id="pitchers" class="tab-content">
-      <h2>투수 기록</h2>
-      <table id="pitchersTable">
-        <thead id="pitchersHead"></thead>
-        <tbody id="pitchersBody"></tbody>
-      </table>
-    </div>
-  </main>
+    <!-- 타자 -->
+    <section id="batters" class="tab-panel active">
+      <div class="card">
+        <div class="card-head">
+          <h2>타자 기록</h2>
+          <small class="hint">컬럼명을 클릭하면 정렬(▲/▼)됩니다</small>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="battersHead"></thead>
+            <tbody id="battersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-  <script src="script.js"></script>
-</body>
-</html>
+    <!-- 투수 -->
+    <section id="pitchers" class="tab-panel">
+      <div class="card">
+        <div class="card-head">
+          <h2>투수 기록</h2>
+          <small class="hint">컬럼명을 클릭하면 정렬(▲/▼)됩니다</small>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="pitchersHead"></thead>
+            <tbody id="pitchersBody"></tbody>
