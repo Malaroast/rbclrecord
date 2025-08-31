@@ -1,90 +1,119 @@
-// ====== 설정 ======
-const SHEET_ID = "1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y";
-// 시트 이름은 정확히 "Batters", "Pitchers"를 사용합니다.
-const SHEET_URL = (sheetName) =>
-  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+// -----------------------
+// CSV URL 설정
+// -----------------------
+const battersCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7qAaMm3tG_1oEuIPbn4pLZiDzzwl6d-Ur-y3_fw9fXIjJN-SYwdap5rbmOk63nDApmzCiqYYa495j/pub?gid=0&single=true&output=csv";   // 웹에 게시한 Batters CSV URL
+const pitchersCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7qAaMm3tG_1oEuIPbn4pLZiDzzwl6d-Ur-y3_fw9fXIjJN-SYwdap5rbmOk63nDApmzCiqYYa495j/pub?gid=249730824&single=true&output=csv";  // 웹에 게시한 Pitchers CSV URL
 
-// ====== 상태 ======
-const state = {
-  batters: { cols: [], types: [], rows: [], sort: { col: 0, dir: null } },
-  pitchers: { cols: [], types: [], rows: [], sort: { col: 0, dir: null } }
-};
-
-// ====== 유틸 ======
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-function parseGViz(text) {
-  // gviz 응답에서 JSON 본문만 안전하게 추출
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return JSON.parse(text.slice(start, end + 1));
+// -----------------------
+// CSV 파싱 함수
+// -----------------------
+function parseCSV(text){
+  return text.trim().split("\n").map(r=>r.split(","));
 }
 
-function formatCell(c) {
-  if (!c) return "";
-  // 포맷된 문자열(c.f)이 있으면 그걸 우선 사용
-  if (typeof c.f !== "undefined" && c.f !== null) return String(c.f);
-  if (typeof c.v === "undefined" || c.v === null) return "";
-  return String(c.v);
-}
-
-function isNumericColumn(types, colIdx, sampleRows) {
-  // gviz 타입 또는 샘플 데이터로 숫자 판단
-  if (types[colIdx] && ["number"].includes(types[colIdx])) return true;
-  let numericCount = 0, checked = 0;
-  for (const r of sampleRows) {
-    const v = r[colIdx];
-    if (v === "" || v === null || typeof v === "undefined") continue;
-    checked++;
-    if (!isNaN(Number(String(v).replace(/,/g, "")))) numericCount++;
-    if (checked >= 12) break;
-  }
-  return checked > 0 && numericCount / checked >= 0.7;
-}
-
-function cmp(a, b, numeric) {
-  if (numeric) {
-    const na = Number(String(a).replace(/,/g, ""));
-    const nb = Number(String(b).replace(/,/g, ""));
-    return (isNaN(na) ? -Infinity : na) - (isNaN(nb) ? -Infinity : nb);
-  }
-  return String(a).localeCompare(String(b), "ko", { numeric: true, sensitivity: "base" });
-}
-
-function renderTable(kind, filterText = "") {
-  const headEl = document.getElementById(`${kind}Head`);
-  const bodyEl = document.getElementById(`${kind}Body`);
-  const { cols, rows, types, sort } = state[kind];
+// -----------------------
+// 테이블 렌더링
+// -----------------------
+function renderTable(tableId, data){
+  const table = document.getElementById(tableId);
+  const thead = table.querySelector("thead");
+  const tbody = table.querySelector("tbody");
+  if(data.length === 0) return;
 
   // 헤더
-  headEl.innerHTML = `<tr>${cols
-    .map((label, i) => {
-      const safe = label && label.trim() ? label : `열 ${i + 1}`;
-      const cls =
-        sort.col === i ? (sort.dir === "asc" ? "sort-asc" : sort.dir === "desc" ? "sort-desc" : "") : "";
-      return `<th data-col="${i}" class="${cls}">${safe}</th>`;
-    })
-    .join("")}</tr>`;
-
-  // 필터 (닉네임: 첫 열 기준)
-  const ft = filterText.trim().toLowerCase();
-  let view = rows.filter((r) => (r[0] + "").toLowerCase().includes(ft));
-
-  // 정렬
-  if (sort.dir) {
-    const colIdx = sort.col;
-    const numeric = isNumericColumn(types, colIdx, view);
-    view = view.slice().sort((ra, rb) => {
-      const base = cmp(ra[colIdx], rb[colIdx], numeric);
-      return sort.dir === "asc" ? base : -base;
+  thead.innerHTML = "";
+  const headerRow = document.createElement("tr");
+  data[0].forEach((cell,i)=>{
+    const th = document.createElement("th");
+    th.textContent = cell;
+    th.dataset.col=i;
+    th.addEventListener("click", ()=>{
+      sortTable(tableId, i);
     });
-  }
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
 
-  // 바디
-  bodyEl.innerHTML = view
-    .map((r) => `<tr>${r.map((c) => `<td>${c === null ? "" : c}</td>`).join("")}</tr>`)
-    .join("");
+  // 데이터
+  tbody.innerHTML="";
+  data.slice(1).forEach(row=>{
+    const tr=document.createElement("tr");
+    row.forEach(cell=>{
+      const td=document.createElement("td");
+      td.textContent=cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
 
-  // 헤더 클릭 -> 정렬 토글
-  headEl.querySelecto
+// -----------------------
+// 테이블 정렬 기능
+// -----------------------
+const sortState = {};
+
+function sortTable(tableId, col){
+  const table = document.getElementById(tableId);
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+
+  const isAsc = sortState[tableId] && sortState[tableId].col===col && sortState[tableId].dir==="asc";
+  sortState[tableId] = { col: col, dir: isAsc ? "desc":"asc" };
+
+  rows.sort((a,b)=>{
+    const aText = a.children[col].textContent.replace(/,/g,'');
+    const bText = b.children[col].textContent.replace(/,/g,'');
+    const aNum = parseFloat(aText);
+    const bNum = parseFloat(bText);
+    if(!isNaN(aNum) && !isNaN(bNum)){
+      return isAsc ? bNum - aNum : aNum - bNum;
+    }
+    return isAsc ? bText.localeCompare(aText) : aText.localeCompare(bText);
+  });
+
+  tbody.innerHTML="";
+  rows.forEach(r=>tbody.appendChild(r));
+
+  // 헤더 화살표
+  table.querySelectorAll("th").forEach(th=>{
+    th.classList.remove("sort-asc","sort-desc");
+  });
+  const th = table.querySelector(`th:nth-child(${col+1})`);
+  th.classList.add(isAsc ? "sort-desc":"sort-asc");
+}
+
+// -----------------------
+// 검색 기능
+// -----------------------
+document.getElementById("searchInput").addEventListener("input", function(){
+  const filter = this.value.toLowerCase();
+  document.querySelectorAll("tbody tr").forEach(row=>{
+    row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
+  });
+});
+
+// -----------------------
+// 탭 전환
+// -----------------------
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
+
+// -----------------------
+// 데이터 로드
+// -----------------------
+async function loadData(){
+  const bRes = await fetch(battersCSV);
+  const pRes = await fetch(pitchersCSV);
+  const bData = parseCSV(await bRes.text());
+  const pData = parseCSV(await pRes.text());
+  renderTable("battersTable", bData);
+  renderTable("pitchersTable", pData);
+}
+
+document.addEventListener("DOMContentLoaded", loadData);
