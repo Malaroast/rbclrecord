@@ -1,159 +1,68 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>야구 기록 열람</title>
-<style>
-body { font-family: Arial, sans-serif; margin:20px; background:#f9f9f9; color:#333; }
-h1{text-align:center;}
-.tabs { display:flex; justify-content:center; margin-bottom:20px; }
-.tab-button { padding:10px 20px; border:none; cursor:pointer; background:#ddd; margin:0 5px; border-radius:5px; }
-.tab-button.active { background:#007bff; color:#fff; }
-.search-box { text-align:center; margin-bottom:20px; }
-#searchInput { padding:8px; width:200px; border:1px solid #aaa; border-radius:4px; }
-#searchBtn { padding:8px 12px; margin-left:5px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.tab-content { display:none; }
-.tab-content.active { display:block; }
-table { width:100%; border-collapse:collapse; background:#fff; margin-top:20px; }
-th,td { padding:10px; border:1px solid #ddd; text-align:center; }
-th { background:#f1f1f1; cursor:pointer; }
-tr:hover { background:#f9f9f9; }
-.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; }
-.modal-content { background:#fff; padding:20px; border-radius:10px; width:400px; max-width:90%; }
-#closeModal { float:right; cursor:pointer; font-size:20px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>야구 기록 열람 사이트</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="container">
+    <h1>야구 기록 열람</h1>
+    
+    <!-- 검색 -->
+    <input type="text" id="searchInput" placeholder="닉네임 검색..." />
 
-<h1>야구 기록 열람</h1>
+    <!-- 탭 -->
+    <div class="tabs">
+      <button class="tab-button active" data-tab="hitters">타자 기록</button>
+      <button class="tab-button" data-tab="pitchers">투수 기록</button>
+    </div>
 
-<div class="tabs">
-  <button class="tab-button active" data-target="batters">타자 기록</button>
-  <button class="tab-button" data-target="pitchers">투수 기록</button>
-</div>
+    <!-- 타자 -->
+    <div id="hitters" class="tab-content active">
+      <h2>타자 기록</h2>
+      <table id="hittersTable">
+        <thead>
+          <tr>
+            <th>닉네임</th>
+            <th>타석</th>
+            <th>타율</th>
+            <th>출루율</th>
+            <th>장타율</th>
+            <th>OPS</th>
+            <th>안타</th>
+            <th>2루타</th>
+            <th>3루타</th>
+            <th>홈런</th>
+            <th>타점</th>
+            <th>삼진</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-<div class="search-box">
-  <input type="text" id="searchInput" placeholder="닉네임을 입력하세요">
-  <button id="searchBtn">검색</button>
-</div>
-
-<div id="batters" class="tab-content active">
-  <h2>타자 기록</h2>
-  <table>
-    <thead>
-      <tr id="batterHeader"></tr>
-    </thead>
-    <tbody id="batterTable"></tbody>
-  </table>
-</div>
-
-<div id="pitchers" class="tab-content">
-  <h2>투수 기록</h2>
-  <table>
-    <thead>
-      <tr id="pitcherHeader"></tr>
-    </thead>
-    <tbody id="pitcherTable"></tbody>
-  </table>
-</div>
-
-<div id="detailModal" class="modal">
-  <div class="modal-content">
-    <span id="closeModal">&times;</span>
-    <h2 id="playerName"></h2>
-    <div id="playerDetails"></div>
+    <!-- 투수 -->
+    <div id="pitchers" class="tab-content">
+      <h2>투수 기록</h2>
+      <table id="pitchersTable">
+        <thead>
+          <tr>
+            <th>닉네임</th>
+            <th>이닝</th>
+            <th>ERA</th>
+            <th>피안타</th>
+            <th>피홈런</th>
+            <th>탈삼진</th>
+            <th>WHIP</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
-</div>
 
-<script>
-// 스프레드시트 링크 (Batters, Pitchers)
-const SHEET_BATTERS = "https://docs.google.com/spreadsheets/d/1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y/gviz/tq?tqx=out:json&sheet=Batters";
-const SHEET_PITCHERS = "https://docs.google.com/spreadsheets/d/1KIW6RJT7knTMGgCEkSeeGr5v5-uB3864Oqzqd7ATu5Y/gviz/tq?tqx=out:json&sheet=Pitchers";
-
-let batters = [], pitchers = [];
-
-// 구글 시트 JSON 파싱
-async function loadSheet(url) {
-  const res = await fetch(url);
-  const text = await res.text();
-  const json = JSON.parse(text.substr(47).slice(0,-2));
-  const cols = json.table.cols.map(c => c.label);
-  const rows = json.table.rows.map(r => r.c.map(c => c ? c.v : ""));
-  return {cols, rows};
-}
-
-// 테이블 렌더링
-function renderTable(target, data){
-  const headerEl = document.getElementById(target+"Header");
-  const bodyEl = document.getElementById(target+"Table");
-  headerEl.innerHTML = "";
-  bodyEl.innerHTML = "";
-
-  // 헤더
-  let headHtml = "";
-  data.cols.forEach(c => headHtml += `<th>${c}</th>`);
-  headerEl.innerHTML = headHtml;
-
-  // 데이터
-  data.rows.forEach(r=>{
-    let rowHtml = "<tr onclick=\"showDetail('"+r[0]+"','"+target+"')\">";
-    r.forEach(cell => rowHtml += `<td>${cell}</td>`);
-    rowHtml += "</tr>";
-    bodyEl.innerHTML += rowHtml;
-  });
-}
-
-// 상세보기 모달
-const modal = document.getElementById("detailModal");
-document.getElementById("closeModal").onclick = ()=> modal.style.display="none";
-function showDetail(name,type){
-  modal.style.display="flex";
-  document.getElementById("playerName").innerText = name;
-  const dataArray = (type==="batters") ? batters.rows : pitchers.rows;
-  const cols = (type==="batters") ? batters.cols : pitchers.cols;
-  const row = dataArray.find(r => r[0]===name);
-  let html = "";
-  row.forEach((val,i)=> html += `<strong>${cols[i]}</strong>: ${val}<br>`);
-  document.getElementById("playerDetails").innerHTML = html;
-}
-
-// 탭 전환
-document.querySelectorAll(".tab-button").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.target).classList.add("active");
-  });
-});
-
-// 검색
-document.getElementById("searchBtn").addEventListener("click",()=>{
-  const keyword = document.getElementById("searchInput").value.trim();
-  if(!keyword) return;
-  const allData = [{arr:batters, type:"batters"}, {arr:pitchers, type:"pitchers"}];
-  for(let d of allData){
-    const index = d.arr.rows.findIndex(r=>r[0].toString().includes(keyword));
-    if(index>=0){
-      showDetail(d.arr.rows[index][0],d.type);
-      document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
-      document.querySelector(`.tab-button[data-target='${d.type}']`).classList.add("active");
-      document.getElementById(d.type).classList.add("active");
-      return;
-    }
-  }
-  alert("선수를 찾을 수 없습니다.");
-});
-
-// 초기 로드
-(async function(){
-  batters = await loadSheet(SHEET_BATTERS);
-  pitchers = await loadSheet(SHEET_PITCHERS);
-  renderTable("batters", batters);
-  renderTable("pitchers", pitchers);
-})();
-</script>
+  <script src="script.js"></script>
 </body>
 </html>
