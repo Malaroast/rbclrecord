@@ -100,6 +100,10 @@ const dataStore = {
 };
 
 const sortState = {};
+const filters = {
+  batters: { col: null, min: null, max: null },
+  pitchers: { col: null, min: null, max: null }
+};
 
 // 기본 split(",") 대신 큰따옴표를 고려한 간단 CSV 파서
 function parseCSV(text) {
@@ -190,6 +194,38 @@ function pick(row, columns) {
   return columns.map((col) => row?.[col] ?? "");
 }
 
+function getActiveTab() {
+  return document.querySelector(".tab-content.active")?.id || "batters";
+}
+
+function getNumericColumns(tab) {
+  const skip = new Set([COLUMN_CONFIG.playerName, "소속 팀", "팀명"]);
+  return COLUMN_CONFIG.table[tab].filter((col) => !skip.has(col));
+}
+
+function populateFilterOptions(tab) {
+  const select = document.getElementById("filterColumn");
+  if (!select) return;
+  select.innerHTML = "";
+
+  const emptyOpt = document.createElement("option");
+  emptyOpt.value = "";
+  emptyOpt.textContent = "전체";
+  select.appendChild(emptyOpt);
+
+  getNumericColumns(tab).forEach((col) => {
+    const opt = document.createElement("option");
+    opt.value = col;
+    opt.textContent = col;
+    select.appendChild(opt);
+  });
+
+  const state = filters[tab];
+  select.value = state.col || "";
+  document.getElementById("filterMin").value = state.min ?? "";
+  document.getElementById("filterMax").value = state.max ?? "";
+}
+
 function renderTable(category, tableId, columns, rows) {
   const table = document.getElementById(tableId);
   const thead = table.querySelector("thead");
@@ -265,17 +301,30 @@ function sortTable(tableId, col) {
   if (th) th.classList.add(isAsc ? "sort-desc" : "sort-asc");
 }
 
-function applySearchFilter() {
-  const filter = document.getElementById("searchInput").value.toLowerCase();
-  document.querySelectorAll(".tab-content").forEach((section) => {
-    const isActive = section.classList.contains("active");
-    section.querySelectorAll("tbody tr").forEach((row) => {
-      if (!isActive) {
-        row.style.display = "";
-        return;
+function applyAllFilters() {
+  const activeTab = getActiveTab();
+  const searchText = document.getElementById("searchInput").value.toLowerCase();
+  const filter = filters[activeTab];
+  const table = document.querySelector(`#${activeTab} table`);
+  const headerCells = Array.from(table.querySelectorAll("th"));
+  const colIndex = filter.col ? headerCells.findIndex((th) => th.textContent === filter.col) : -1;
+
+  document.querySelectorAll(`#${activeTab} tbody tr`).forEach((row) => {
+    const textMatch = row.textContent.toLowerCase().includes(searchText);
+    let numericMatch = true;
+
+    if (filter.col && colIndex >= 0) {
+      const raw = row.children[colIndex]?.textContent || "";
+      const num = parseFloat(raw.replace(/,/g, ""));
+      if (raw.trim() === "" || isNaN(num)) {
+        numericMatch = false;
+      } else {
+        if (filter.min !== null && num < filter.min) numericMatch = false;
+        if (filter.max !== null && num > filter.max) numericMatch = false;
       }
-      row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
-    });
+    }
+
+    row.style.display = textMatch && numericMatch ? "" : "none";
   });
 }
 
@@ -350,7 +399,29 @@ function setupTableClick() {
   });
 }
 
-document.getElementById("searchInput").addEventListener("input", applySearchFilter);
+document.getElementById("searchInput").addEventListener("input", applyAllFilters);
+
+document.getElementById("applyFilter").addEventListener("click", () => {
+  const tab = getActiveTab();
+  const col = document.getElementById("filterColumn").value || null;
+  const minVal = parseFloat(document.getElementById("filterMin").value);
+  const maxVal = parseFloat(document.getElementById("filterMax").value);
+  filters[tab] = {
+    col,
+    min: isNaN(minVal) ? null : minVal,
+    max: isNaN(maxVal) ? null : maxVal
+  };
+  applyAllFilters();
+});
+
+document.getElementById("clearFilter").addEventListener("click", () => {
+  const tab = getActiveTab();
+  filters[tab] = { col: null, min: null, max: null };
+  document.getElementById("filterColumn").value = "";
+  document.getElementById("filterMin").value = "";
+  document.getElementById("filterMax").value = "";
+  applyAllFilters();
+});
 
 document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -358,7 +429,8 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
     document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(btn.dataset.tab).classList.add("active");
-    applySearchFilter();
+    populateFilterOptions(btn.dataset.tab);
+    applyAllFilters();
   });
 });
 
@@ -374,6 +446,8 @@ async function loadData() {
     renderTable("batters", "battersTable", COLUMN_CONFIG.table.batters, dataStore.batters.rows);
     renderTable("pitchers", "pitchersTable", COLUMN_CONFIG.table.pitchers, dataStore.pitchers.rows);
     setupTableClick();
+    populateFilterOptions(getActiveTab());
+    applyAllFilters();
   } catch (err) {
     console.error("데이터를 불러오는 중 문제가 발생했습니다.", err);
     renderTable("batters", "battersTable", COLUMN_CONFIG.table.batters, []);

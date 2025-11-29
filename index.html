@@ -27,6 +27,24 @@
     </header>
 
     <main>
+      <div class="filters" aria-label="숫자 필터">
+        <div class="filter-group">
+          <label for="filterColumn">지표</label>
+          <select id="filterColumn"></select>
+        </div>
+        <div class="filter-group">
+          <label for="filterMin">이상</label>
+          <input type="number" id="filterMin" placeholder="min">
+        </div>
+        <div class="filter-group">
+          <label for="filterMax">이하</label>
+          <input type="number" id="filterMax" placeholder="max">
+        </div>
+        <div class="filter-actions">
+          <button id="applyFilter" class="btn">필터 적용</button>
+          <button id="clearFilter" class="btn ghost">초기화</button>
+        </div>
+      </div>
       <section id="batters" class="tab-content active">
         <div class="section-head">
           <h2>타자 기록</h2>
