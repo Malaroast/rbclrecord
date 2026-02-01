@@ -16,12 +16,14 @@ body {
   color:var(--ink);
   margin:0;
   padding:0;
+  overflow-y: scroll; /* 스크롤바 유동 방지 */
 }
 
+/* [중요] 전체 레이아웃 너비를 줄여서 좌우 공백 확보 */
 .page {
-  max-width:1200px;
-  margin:0 auto;
-  padding:32px 20px 48px;
+  max-width: 1200px; /* 기존 1200px -> 1080px로 축소 */
+  margin: 0 auto;    /* 중앙 정렬 */
+  padding: 40px 24px; /* 위아래 여백을 늘려 시원한 느낌 */
 }
 
 .hero {
@@ -74,12 +76,13 @@ body {
 
 .tab-btn {
   border:none;
-  padding:10px 16px;
+  padding:8px 14px;
   border-radius:10px;
   cursor:pointer;
   background:transparent;
   color:var(--muted);
   font-weight:600;
+  font-size: 13px;
   transition:all 0.2s ease;
 }
 
@@ -100,7 +103,7 @@ body {
 
 #searchInput {
   padding:10px 14px;
-  min-width:240px;
+  min-width:220px;
   border:1px solid var(--line);
   border-radius:10px;
   background:#f8fafc;
@@ -114,7 +117,8 @@ body {
 }
 
 .section-head {
-  margin:28px 0 12px;
+  margin:32px 0 16px;
+  padding-left: 4px;
 }
 
 .section-head h2 {
@@ -125,14 +129,23 @@ body {
 .section-head p {
   margin:6px 0 0;
   color:var(--muted);
+  font-size: 14px;
 }
 
+/* style.css 에서 .table-card를 찾아 아래 내용으로 변경 */
+/* style.css .table-card 찾아서 덮어쓰기 */
 .table-card {
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:14px;
-  overflow:hidden;
-  box-shadow:0 15px 30px rgba(15,23,42,0.06);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  
+  /* 스크롤바 제거 및 내용물 다 보여주기 */
+  overflow: visible; 
+  display: block;
+  width: 100%;
+  
+  box-shadow: 0 15px 30px rgba(15,23,42,0.06);
+  margin-bottom: 24px;
 }
 
 table {
@@ -144,12 +157,16 @@ thead {
   background:#f8fafc;
 }
 
+/* style.css 에서 th, td를 찾아 아래 내용으로 변경(혹은 덮어쓰기) */
 th, td {
-  border-bottom:1px solid var(--line);
-  padding:12px 10px;
-  text-align:center;
-  cursor:default;
-  font-size:14px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px; /* 좌우 패딩을 조금 넉넉히 줌 */
+  text-align: center;
+  cursor: default;
+  font-size: 14px;
+  
+  /* [중요] 글자가 좁아져도 줄바꿈 되지 않고 한 줄로 버티게 함 */
+  white-space: nowrap; 
 }
 
 th {
@@ -157,7 +174,7 @@ th {
   color:var(--muted);
   letter-spacing:0.01em;
   text-transform:uppercase;
-  font-size:12px;
+  font-size:11px;
   cursor:pointer;
   position:relative;
   user-select:none;
@@ -175,6 +192,7 @@ th.sort-desc::after { content:" v"; font-size:10px; }
   cursor:pointer;
 }
 
+/* 모달 관련 스타일 */
 .modal {
   position:fixed;
   inset:0;
@@ -302,34 +320,42 @@ th.sort-desc::after { content:" v"; font-size:10px; }
 .tab-content { display:none; }
 .tab-content.active { display:block; }
 
-/* --- [수정된 부분] 리더보드 그리드 및 카드 디자인 --- */
+/* ------------------------------------------------------------------
+   [리더보드 카드 그리드 디자인 수정] 
+   - 카드 크기 대폭 축소, 유동적 배치, 좌우 공백 확보
+   ------------------------------------------------------------------ */
 
 .leader-grid {
   display: grid;
-  /* 유동적 배치: 최소 190px, 공간 남으면 늘어남. 한 줄에 5개 강제하지 않음 */
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 24px; /* 카드 사이 간격 넓힘 */
-  margin-top: 24px;
-  /* 그리드 전체의 좌우 여백을 주기 위해 max-width 조절 가능 (필요시 주석 해제) */
-  /* max-width: 1100px; margin-left: auto; margin-right: auto; */
+  /* [수정] 카드 최소 너비를 200px로 줄여서 더 작게 만듦. 
+     공간이 남으면 자동으로 줄바꿈 처리 (5개 고정 아님) */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px; /* 카드 사이 간격 */
+  margin-top: 20px;
 }
 
 .leader-card {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px; /* 둥근 정도 살짝 줄임 */
-  padding: 16px; /* 패딩 축소 (기존 20px -> 16px) */
+  border-radius: 12px;
+  padding: 16px; /* 내부 여백 축소 */
   box-shadow: 0 4px 12px rgba(0,0,0,0.03);
   text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* 1등 사진 디자인 (크기 축소 반영) */
+.leader-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+/* 1등 사진 크기 축소 */
 .top-player-img {
-  width: 60px;  /* 기존 70~80px -> 60px로 축소 */
-  height: 60px;
+  width: 56px;  /* 80px -> 56px로 크기 대폭 축소 */
+  height: 56px;
   margin: 0 auto 10px;
   border-radius: 50%;
-  border: 2px solid var(--accent); /* 테두리 두께 조절 */
+  border: 2px solid var(--accent);
   background-color: var(--accent-soft);
   overflow: hidden;
   display: flex;
@@ -345,9 +371,9 @@ th.sort-desc::after { content:" v"; font-size:10px; }
 }
 
 .leader-card h3 {
-  font-size: 15px; /* 폰트 크기 축소 */
+  font-size: 14px; /* 타이틀 글자 크기 축소 */
   color: var(--accent);
-  margin: 0 0 10px 0;
+  margin: 0 0 12px 0;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--accent-soft);
 }
@@ -358,9 +384,9 @@ th.sort-desc::after { content:" v"; font-size:10px; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0; /* 내부 여백 축소 */
+  padding: 5px 0; /* 리스트 위아래 간격 축소 */
   border-bottom: 1px dashed var(--line);
-  font-size: 13px; /* 리스트 폰트 크기 축소 */
+  font-size: 13px; /* 리스트 글자 크기 축소 */
   gap: 8px;
 }
 
@@ -370,41 +396,87 @@ th.sort-desc::after { content:" v"; font-size:10px; }
   font-weight: 800; 
   color: var(--muted); 
   flex-shrink: 0; 
-  width: 16px; 
+  width: 14px; 
+  font-size: 12px;
 }
 
-.leader-name { 
-  flex-grow: 1; 
-  text-align: left; 
-  padding-left: 4px; 
-  font-weight: 600; 
-  cursor: pointer; 
-  color: var(--ink);
-  
-  /* 닉네임 말줄임 처리 */
-  font-size: 12.5px;
+/* style.css 에서 기존 코드 수정 */
+.leader-name {
+  flex-grow: 1;
+  text-align: left;
+  padding-left: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  /* color: var(--ink);  <-- 기존 색상 주석 처리 또는 삭제 */
+  color: var(--accent); /* [수정] 파란색 강조 색상 적용 */
+
+  /* 긴 닉네임 말줄임(...) 처리 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
-  max-width: 100px; /* 이름이 차지할 최대 너비 */
+  max-width: 90px;
+}
+
+.leader-item:first-child .leader-rank {
+  font-size: 18px;     /* 폰트 크기를 확 키움 (기존 12px) */
+  color: var(--accent); /* 색상도 파란색으로 강조 */
+  font-weight: 900;    /* 더 두껍게 */
+  /* 약간의 위치 조정이 필요할 경우 사용 (선택사항) */
+  /* transform: translateY(-1px); */
+}
+
+.leader-item:first-child .leader-name {
+   font-weight: 700;
+   font-size: 17px;
 }
 
 .leader-value { 
   font-weight: 700; 
   color: var(--ink); 
   flex-shrink: 0; 
+  font-size: 12px;
+}
+
+/* [필수] 표 압축 스타일 (스크롤 없이 한눈에 보기) */
+
+/* 1. 테이블을 카드 너비에 딱 맞춤 */
+.table-card table {
+  width: 100%;        /* 무조건 부모 너비(화면)에 맞춤 */
+  table-layout: auto; /* 내용 길이에 따라 칸 크기 자동 조절 */
+  border-collapse: collapse;
+}
+
+/* 2. 칸 내부 여백과 글자 크기 줄이기 (다이어트) */
+.table-card th, 
+.table-card td {
+  padding: 10px 4px;  /* 좌우 여백을 4px로 줄임 (기존 10~16px) */
+  font-size: 13px;    /* 글자 크기를 살짝 줄임 (공간 확보) */
+  white-space: nowrap; /* 줄바꿈 금지 (한 줄 유지) */
+  
+  /* 만약 그래도 좁다면 아래 주석을 풀어서 글자를 더 줄이세요 */
+  /* letter-spacing: -0.5px; */ 
+}
+
+/* 3. 모바일 등 화면이 너무 작아지면 글자가 겹치는 것 방지 (선택사항) */
+@media (max-width: 768px) {
+  .table-card { overflow-x: auto; } /* 모바일에서는 어쩔 수 없이 스크롤 허용 */
 }
 
 @media(max-width:900px){
   .hero { align-items:flex-start; }
   .controls { width:100%; }
   #searchInput { width:100%; min-width:auto; }
-  /* 모바일/태블릿에서도 너무 작아지지 않게 조정 */
-  .leader-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  
+  /* 모바일에서는 카드가 더 작아지도록 설정 */
+  .leader-grid { 
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+    gap: 16px;
+  }
 }
 
 @media(max-width:640px){
+  /* 모바일 화면에서는 여백을 조금 줄여서 내용이 잘 보이게 함 */
+  .page { padding: 20px 16px; } 
   th, td { padding:10px 6px; font-size:12px; }
   .tab-btn { padding:8px 12px; }
   .hero__text h1 { font-size:22px; }

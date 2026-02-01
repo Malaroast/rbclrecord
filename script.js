@@ -1,5 +1,6 @@
 const battersCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7qAaMm3tG_1oEuIPbn4pLZiDzzwl6d-Ur-y3_fw9fXIjJN-SYwdap5rbmOk63nDApmzCiqYYa495j/pub?gid=0&single=true&output=csv";
 const pitchersCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7qAaMm3tG_1oEuIPbn4pLZiDzzwl6d-Ur-y3_fw9fXIjJN-SYwdap5rbmOk63nDApmzCiqYYa495j/pub?gid=249730824&single=true&output=csv";
+const leagueCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7qAaMm3tG_1oEuIPbn4pLZiDzzwl6d-Ur-y3_fw9fXIjJN-SYwdap5rbmOk63nDApmzCiqYYa495j/pub?gid=776680138&single=true&output=csv";
 
 const COLUMN_CONFIG = {
   playerName: "Player",
@@ -24,7 +25,7 @@ const filters = {
   pitchers: { col: null, min: null, max: null }
 };
 
-// CSV 파서 및 데이터 변환 함수 (기존과 동일)
+// CSV 파서
 function parseCSV(text) {
   const rows = []; let row = []; let field = ""; let inQuotes = false;
   for (let i = 0; i < text.length; i++) {
@@ -58,8 +59,10 @@ function zeroRow(columns, name) {
 }
 
 function pick(row, columns) { return columns.map((col) => row?.[col] ?? ""); }
-function getActiveTab() { return document.querySelector(".tab-content.active")?.id || "batters"; }
+function getActiveTab() { return document.querySelector(".tab-content.active")?.id || "top5"; }
+
 function getNumericColumns(tab) {
+  if (tab === 'top5') return [];
   const skip = new Set([COLUMN_CONFIG.playerName, "소속 팀", "팀명"]);
   return COLUMN_CONFIG.table[tab].filter((col) => !skip.has(col));
 }
@@ -67,18 +70,30 @@ function getNumericColumns(tab) {
 function populateFilterOptions(tab) {
   const select = document.getElementById("filterColumn");
   if (!select) return;
+
+  const filtersDiv = document.querySelector('.filters');
+  if (tab === 'top5') {
+    if (filtersDiv) filtersDiv.style.display = 'none';
+    return;
+  } else {
+    if (filtersDiv) filtersDiv.style.display = 'flex';
+  }
+
   select.innerHTML = "";
   const emptyOpt = document.createElement("option");
   emptyOpt.value = ""; emptyOpt.textContent = "전체"; select.appendChild(emptyOpt);
-  getNumericColumns(tab).forEach((col) => {
+  
+  const numericCols = getNumericColumns(tab);
+  numericCols.forEach((col) => {
     const opt = document.createElement("option"); opt.value = col; opt.textContent = col; select.appendChild(opt);
   });
-  const state = filters[tab]; select.value = state.col || "";
+
+  const state = filters[tab] || { col: null, min: null, max: null };
+  select.value = state.col || "";
   document.getElementById("filterMin").value = state.min ?? "";
   document.getElementById("filterMax").value = state.max ?? "";
 }
 
-// --- 수정된 부분: 순위 업데이트 로직 ---
 function updateRankNumbers(tableBody) {
   let count = 1;
   tableBody.querySelectorAll("tr").forEach((row) => {
@@ -91,14 +106,13 @@ function updateRankNumbers(tableBody) {
 
 function renderTable(category, tableId, columns, rows) {
   const table = document.getElementById(tableId);
+  if (!table) return;
   const thead = table.querySelector("thead");
   const tbody = table.querySelector("tbody");
   const nameField = COLUMN_CONFIG.playerName;
 
   thead.innerHTML = "";
   const headerRow = document.createElement("tr");
-
-  // [수정] 순위 헤더 추가
   const rankTh = document.createElement("th");
   rankTh.textContent = "순위";
   headerRow.appendChild(rankTh);
@@ -116,7 +130,7 @@ function renderTable(category, tableId, columns, rows) {
   if (!rows.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
-    td.colSpan = columns.length + 1; // 순위 컬럼 포함
+    td.colSpan = columns.length + 1;
     td.textContent = "데이터를 불러오지 못했습니다.";
     tr.appendChild(td);
     tbody.appendChild(tr);
@@ -125,8 +139,6 @@ function renderTable(category, tableId, columns, rows) {
 
   rows.forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
-    
-    // [수정] 순위 데이터 셀 추가
     const rankTd = document.createElement("td");
     rankTd.className = "rank-cell";
     rankTd.textContent = rowIndex + 1;
@@ -138,7 +150,6 @@ function renderTable(category, tableId, columns, rows) {
         const span = document.createElement("span");
         span.className = "clickable player-link";
         span.dataset.player = cell;
-        span.dataset.category = category;
         span.textContent = cell;
         td.appendChild(span);
       } else {
@@ -154,8 +165,6 @@ function sortTable(tableId, col) {
   const table = document.getElementById(tableId);
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-
-  // [수정] 순위 컬럼이 추가되었으므로 데이터 컬럼 인덱스는 col + 1입니다.
   const dataColIndex = col + 1;
 
   const isAsc = sortState[tableId] && sortState[tableId].col === col && sortState[tableId].dir === "asc";
@@ -174,8 +183,6 @@ function sortTable(tableId, col) {
 
   tbody.innerHTML = "";
   rows.forEach((r) => tbody.appendChild(r));
-
-  // [수정] 정렬 후 번호 재부여
   updateRankNumbers(tbody);
 
   table.querySelectorAll("th").forEach((th) => th.classList.remove("sort-asc", "sort-desc"));
@@ -185,9 +192,12 @@ function sortTable(tableId, col) {
 
 function applyAllFilters() {
   const activeTab = getActiveTab();
+  if (activeTab === 'top5') return; // 에러 방지: 리더보드 탭은 필터 무시
+
   const searchText = document.getElementById("searchInput").value.toLowerCase();
   const filter = filters[activeTab];
   const table = document.querySelector(`#${activeTab} table`);
+  if (!table) return;
   const tbody = table.querySelector("tbody");
   const headerCells = Array.from(table.querySelectorAll("th"));
   const colIndex = filter.col ? headerCells.findIndex((th) => th.textContent === filter.col) : -1;
@@ -206,15 +216,11 @@ function applyAllFilters() {
         if (filter.max !== null && num > filter.max) numericMatch = false;
       }
     }
-
     row.style.display = textMatch && numericMatch ? "" : "none";
   });
-
-  // [수정] 필터링 적용 후 보이는 결과에만 순서대로 번호 재부여
   updateRankNumbers(tbody);
 }
 
-// 이하 Modal 및 초기화 로직 (기존과 동일)
 function renderDetail(containerId, columns, row) {
   const container = document.getElementById(containerId); container.innerHTML = "";
   const grid = document.createElement("div"); grid.className = "detail-grid";
@@ -229,15 +235,21 @@ function renderDetail(containerId, columns, row) {
 
 function openModal(playerName) {
   const modal = document.getElementById("playerModal");
+  if (!modal) return;
   document.getElementById("modalPlayerName").textContent = playerName;
   const batterRow = dataStore.batters.map.get(playerName) || zeroRow(COLUMN_CONFIG.detail.batters, playerName);
   const pitcherRow = dataStore.pitchers.map.get(playerName) || zeroRow(COLUMN_CONFIG.detail.pitchers, playerName);
   renderDetail("detailBatters", COLUMN_CONFIG.detail.batters, batterRow);
   renderDetail("detailPitchers", COLUMN_CONFIG.detail.pitchers, pitcherRow);
+  
   document.querySelectorAll("[data-detail-tab]").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".detail-content").forEach((c) => c.classList.remove("active"));
-  document.querySelector("[data-detail-tab='detailBatters']").classList.add("active");
-  document.getElementById("detailBatters").classList.add("active");
+  
+  const defaultTabBtn = document.querySelector("[data-detail-tab='detailBatters']");
+  if (defaultTabBtn) defaultTabBtn.classList.add("active");
+  const defaultContent = document.getElementById("detailBatters");
+  if (defaultContent) defaultContent.classList.add("active");
+  
   modal.classList.add("show"); modal.setAttribute("aria-hidden", "false");
 }
 
@@ -248,13 +260,19 @@ function closeModal() {
 
 function setupModalEvents() {
   const modal = document.getElementById("playerModal");
+  if (!modal) return;
   modal.addEventListener("click", (e) => { if (e.target.classList.contains("modal__overlay")) closeModal(); });
-  modal.querySelector(".modal__close").addEventListener("click", closeModal);
+  const closeBtn = modal.querySelector(".modal__close");
+  if (closeBtn) closeBtn.addEventListener("click", closeModal);
+  
   document.querySelectorAll("[data-detail-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll("[data-detail-tab]").forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".detail-content").forEach((c) => c.classList.remove("active"));
-      btn.classList.add("active"); document.getElementById(btn.dataset.detailTab).classList.add("active");
+      btn.classList.add("active"); 
+      const targetId = btn.dataset.detailTab;
+      const targetContent = document.getElementById(targetId);
+      if (targetContent) targetContent.classList.add("active");
     });
   });
 }
@@ -270,45 +288,165 @@ function setupTableClick() {
   });
 }
 
+async function renderTop5(raw) {
+  const container = document.getElementById("leaderContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const colPairs = [1, 4, 7, 10, 13, 16, 19, 22, 25]; 
+  const rowGroups = [{start: 44, titleRow: 44}, {start: 51, titleRow: 51}]; 
+
+  for (const group of rowGroups) {
+    for (const colIdx of colPairs) {
+      const title = raw[group.titleRow]?.[colIdx + 1];
+      if (!title) continue;
+      
+      let listHtml = "";
+      let topPlayerImage = ""; // 1등 사진 저장용
+
+      for (let i = 1; i <= 5; i++) {
+        const name = raw[group.start + i]?.[colIdx];
+        const val = raw[group.start + i]?.[colIdx + 1];
+        
+        if (name && name.trim() !== "") {
+// i === 1 (1등)일 때 실행되는 구간
+if (i === 1) {
+  const avatarUrl = await getRobloxAvatar(name); // 위에서 수정한 함수 호출
+  topPlayerImage = `
+    <div class="top-player-img">
+      <img src="${avatarUrl}" alt="${name}" onerror="this.src='기본이미지주소'">
+    </div>`;
+}
+
+          listHtml += `
+            <li class="leader-item">
+              <span class="leader-rank">${i}</span>
+              <span class="leader-name" onclick="openModal('${name}')">${name}</span>
+              <span class="leader-value">${val}</span>
+            </li>`;
+        }
+      }
+
+      if (listHtml !== "") {
+        container.innerHTML += `
+          <div class="leader-card">
+            ${topPlayerImage} <h3>${title}</h3>
+            <ul class="leader-list">${listHtml}</ul>
+          </div>`;
+      }
+    }
+  }
+}
+
+// 이벤트 바인딩
 document.getElementById("searchInput").addEventListener("input", applyAllFilters);
+
 document.getElementById("applyFilter").addEventListener("click", () => {
   const tab = getActiveTab();
+  if (tab === 'top5') return;
   const col = document.getElementById("filterColumn").value || null;
   const minVal = parseFloat(document.getElementById("filterMin").value);
   const maxVal = parseFloat(document.getElementById("filterMax").value);
   filters[tab] = { col, min: isNaN(minVal) ? null : minVal, max: isNaN(maxVal) ? null : maxVal };
   applyAllFilters();
 });
+
 document.getElementById("clearFilter").addEventListener("click", () => {
-  const tab = getActiveTab(); filters[tab] = { col: null, min: null, max: null };
-  document.getElementById("filterColumn").value = ""; document.getElementById("filterMin").value = ""; document.getElementById("filterMax").value = "";
+  const tab = getActiveTab();
+  if (tab === 'top5') return;
+  filters[tab] = { col: null, min: null, max: null };
+  document.getElementById("filterColumn").value = ""; 
+  document.getElementById("filterMin").value = ""; 
+  document.getElementById("filterMax").value = "";
   applyAllFilters();
 });
+
 document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
   btn.addEventListener("click", () => {
+    const tabName = btn.dataset.tab;
     document.querySelectorAll(".tab-btn[data-tab]").forEach((b) => b.classList.remove("active"));
     document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
-    btn.classList.add("active"); document.getElementById(btn.dataset.tab).classList.add("active");
-    populateFilterOptions(btn.dataset.tab); applyAllFilters();
+    
+    btn.classList.add("active"); 
+    const content = document.getElementById(tabName);
+    if (content) content.classList.add("active");
+    
+    populateFilterOptions(tabName); 
+    if (tabName !== 'top5') {
+      applyAllFilters();
+    }
   });
 });
 
 async function loadData() {
   try {
-    const [bRes, pRes] = await Promise.all([fetch(battersCSV), fetch(pitchersCSV)]);
-    const bData = toObjects(parseCSV(await bRes.text()));
-    const pData = toObjects(parseCSV(await pRes.text()));
+    const [bRes, pRes, lRes] = await Promise.all([
+      fetch(battersCSV), 
+      fetch(pitchersCSV),
+      fetch(leagueCSV)
+    ]);
+    
+    const bRaw = parseCSV(await bRes.text());
+    const pRaw = parseCSV(await pRes.text());
+    const lRaw = parseCSV(await lRes.text());
+
+    const bData = toObjects(bRaw);
+    const pData = toObjects(pRaw);
+
     dataStore.batters = { ...bData, map: mapByName(bData.rows) };
     dataStore.pitchers = { ...pData, map: mapByName(pData.rows) };
+    
+    renderTop5(lRaw); 
     renderTable("batters", "battersTable", COLUMN_CONFIG.table.batters, dataStore.batters.rows);
     renderTable("pitchers", "pitchersTable", COLUMN_CONFIG.table.pitchers, dataStore.pitchers.rows);
-    setupTableClick(); populateFilterOptions(getActiveTab()); applyAllFilters();
+    
+    setupTableClick();
+    const currentTab = getActiveTab();
+    populateFilterOptions(currentTab);
+    
+    if (currentTab !== 'top5') {
+      applyAllFilters();
+    }
   } catch (err) {
-    console.error("데이터 오류", err);
-    renderTable("batters", "battersTable", COLUMN_CONFIG.table.batters, []);
-    renderTable("pitchers", "pitchersTable", COLUMN_CONFIG.table.pitchers, []);
+    console.error("데이터 로드 에러:", err);
   }
 }
 
+async function getRobloxAvatar(username) {
+  try {
+    const myProxy = "https://floral-recipe-7246.mhr090830.workers.dev/"; 
+    const userApi = "https://users.roblox.com/v1/usernames/users";
+    
+    // 1. 유저 ID 가져오기
+    const userRes = await fetch(`${myProxy}?url=${encodeURIComponent(userApi)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: true })
+    });
+    const userData = await userRes.json();
+
+    if (userData.data && userData.data.length > 0) {
+      const userId = userData.data[0].id;
+      
+      // 2. 썸네일 API 호출 (제공해주신 이미지의 API 방식 적용)
+      const thumbApi = `https://thumbnails.roblox.com/v1/users/avatar-bust?userIds=${userId}&size=150x150&format=Png&isCircular=false`;
+      const thumbRes = await fetch(`${myProxy}?url=${encodeURIComponent(thumbApi)}`);
+      const thumbData = await thumbRes.json();
+
+      // 3. Response body에서 imageUrl 추출
+      if (thumbData.data && thumbData.data.length > 0) {
+        const finalImageUrl = thumbData.data[0].imageUrl;
+        console.log(`${username}의 실제 이미지 경로:`, finalImageUrl);
+        return finalImageUrl;
+      }
+    }
+  } catch (err) {
+    console.error("로블록스 이미지 로드 실패:", err);
+  }
+  // 실패 시 기본 아바타
+  return "https://tr.rbxcdn.com/38c6ed8c6360255caffabcde41f13903/150/150/AvatarBust/Png";
+}
+
+// 초기화 실행
 setupModalEvents();
 document.addEventListener("DOMContentLoaded", loadData);
